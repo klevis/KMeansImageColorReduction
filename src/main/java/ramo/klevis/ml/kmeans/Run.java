@@ -13,7 +13,6 @@ import java.io.IOException;
 public class Run {
 
     public static void main(String[] args) throws IOException {
-        // JFileChooser-Objekt erstellen
         JFrame jFrame = new JFrame();
         jFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         jFrame.setSize(800, 500);
@@ -54,7 +53,6 @@ public class Run {
                         Image scaledInstance = originalImage.getScaledInstance(ImagePanel.DEFAULT_WIDTH, ImagePanel.DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
                         int[][] imageRGB = transformImageToTwoDimensionalMatrix(originalImage);
                         sourceImagePanel.setImg(scaledInstance);
-                        transformedImagedLabel.setImg(scaledInstance);
                         mainPanel.updateUI();
                     } catch (IOException e1) {
                         throw new RuntimeException(e1);
@@ -67,18 +65,6 @@ public class Run {
         jFrame.setVisible(true);
 
 
-    }
-
-    private static void addTransformedImagePanel(JPanel mainPanel, JLabel transformedImagedLabel) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(transformedImagedLabel, BorderLayout.CENTER);
-        GridBagConstraints c = new GridBagConstraints();
-        c.gridx = 1;
-        c.gridy = 1;
-        c.fill = GridBagConstraints.BOTH;
-        c.weightx = 1;
-        c.weighty = 1;
-        mainPanel.add(panel, c);
     }
 
     private static void addSourceImagePanel(JPanel mainPanel, JPanel imagePanel) {
