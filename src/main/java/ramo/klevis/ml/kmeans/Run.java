@@ -17,6 +17,8 @@ import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +28,8 @@ import java.util.stream.DoubleStream;
 public class Run {
     public static int[][] imageRGB;
     private static BufferedImage originalImage;
+    private static JLabel sizeLabelOriginalImage = new JLabel();
+    private static JLabel sizeLabelTransformedImage = new JLabel();
 
     public static void main(String[] args) throws IOException {
 
@@ -39,6 +43,8 @@ public class Run {
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
 
+        addSizeLabel(mainPanel, sizeLabelOriginalImage, 0);
+        addSizeLabel(mainPanel, sizeLabelTransformedImage, 2);
         ImagePanel sourceImagePanel = new ImagePanel();
         addSourceImagePanel(mainPanel, sourceImagePanel);
 
@@ -69,7 +75,9 @@ public class Run {
                     try {
                         originalImage = ImageIO.read(chooser.getSelectedFile());
                         Image scaledInstance = originalImage.getScaledInstance(ImagePanel.DEFAULT_WIDTH, ImagePanel.DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
-
+                        sizeLabelOriginalImage.setText("File Size Before Color Reduction : " + BigDecimal.valueOf(chooser.getSelectedFile().length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
+                        sizeLabelOriginalImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+                        sizeLabelOriginalImage.setForeground(Color.RED);
                         imageRGB = transformImageToTwoDimensionalMatrix(originalImage);
                         sourceImagePanel.setImg(scaledInstance);
                         mainPanel.updateUI();
@@ -98,7 +106,6 @@ public class Run {
             JavaRDD<Vector> parallelize = sparkContext.parallelize(collect);
             KMeansModel fit = kMeans.run(parallelize.rdd());
             Vector[] clusters = fit.clusterCenters();
-            long start = System.currentTimeMillis();
             int[][] transformedImage = new int[imageRGB.length][3];
             int index = 0;
             for (int[] ints : imageRGB) {
@@ -114,7 +121,6 @@ public class Run {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println((System.currentTimeMillis()) - start);
             System.out.println((System.currentTimeMillis()) - startBegin);
         });
         addTransformButton(mainPanel, transform);
@@ -131,6 +137,18 @@ public class Run {
         return new JavaSparkContext(conf);
     }
 
+    private static void addSizeLabel(JPanel mainPanel, JLabel sizeLabel, int pos) {
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = pos;
+        c.gridy = 0;
+        c.fill = GridBagConstraints.CENTER;
+        c.weightx = 0.1;
+        c.weighty = 0.1;
+        mainPanel.add(sizeLabel, c);
+    }
+
+
     private static void addSourceImagePanel(JPanel mainPanel, JPanel imagePanel) {
 
         GridBagConstraints c = new GridBagConstraints();
@@ -142,6 +160,7 @@ public class Run {
         mainPanel.add(imagePanel, c);
         imagePanel.setBorder(new LineBorder(Color.black));
     }
+
 
     private static void addTransformedImagePanel(JPanel mainPanel, JPanel imagePanel) {
 
@@ -198,6 +217,9 @@ public class Run {
         File outputfile = new File("writeBack.png");
         ImageIO.write(writeBackImage, "png", outputfile);
         transformedImagedPanel.setImage("writeBack.png");
+        sizeLabelTransformedImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        sizeLabelTransformedImage.setText("File Size After Color Reduction : " + BigDecimal.valueOf(outputfile.length() / (1024d * 1024d)).setScale(2,RoundingMode.HALF_UP).doubleValue() + " MB ");
+        sizeLabelTransformedImage.setForeground(Color.RED);
     }
 
     private static int[][] transformImageToTwoDimensionalMatrix(BufferedImage img) {

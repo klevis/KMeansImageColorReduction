@@ -6,6 +6,7 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import javax.imageio.ImageIO;
@@ -17,6 +18,7 @@ public class ImagePanel extends JPanel {
     public static final int DEFAULT_WIDTH = 400;
     public static final int DEFAULT_HEIGHT = 400;
     private Image img;
+    private Path path;
 
 
     public void setImg(Image img) {
@@ -37,8 +39,13 @@ public class ImagePanel extends JPanel {
         setImage(first);
     }
 
+    public Path getPath() {
+        return path;
+    }
+
     public void setImage(String first) throws IOException {
-        BufferedImage originalImage = ImageIO.read(Paths.get(first).toFile());
+        path = Paths.get(first);
+        BufferedImage originalImage = ImageIO.read(path.toFile());
         Image scaledInstance = originalImage.getScaledInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
         setImg(scaledInstance);
     }
