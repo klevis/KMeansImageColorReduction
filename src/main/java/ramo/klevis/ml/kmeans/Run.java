@@ -96,6 +96,7 @@ public class Run {
         JButton transform = new JButton("Transform");
         transform.addActionListener(actionListener -> {
             int colorToReduce = jslider.getValue();
+            long start = System.currentTimeMillis();
             KMeans kMeans = new KMeans();
             kMeans.setSeed(1).setK(colorToReduce);
             java.util.List<Row> collect = Arrays.stream(imageRGB).map(e -> {
@@ -112,15 +113,6 @@ public class Run {
             Dataset<Row> dataFrame = spark.createDataFrame(parallelize, schema);
             KMeansModel fit = kMeans.fit(dataFrame);
             Vector[] vectors = fit.clusterCenters();
-//            parallelize.map(e -> {
-//                Vector rowVector = (Vector) e.apply(0);
-//                int predict = fit.predict(rowVector);
-//                Integer[] transformedRow = new Integer[3];
-//                transformedRow[0] = (int) vectors[predict].apply(0);
-//                transformedRow[1] = (int) vectors[predict].apply(1);
-//                transformedRow[2] = (int) vectors[predict].apply(2);
-//                return transformedRow;
-//            }).collect();
             int[][] transformedImage = new int[imageRGB.length][3];
             int index = 0;
             for (int[] ints : imageRGB) {
@@ -136,6 +128,8 @@ public class Run {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+            System.out.println((System.currentTimeMillis()) - start);
         });
         addTransformButton(mainPanel, transform);
 
