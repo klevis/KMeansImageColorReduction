@@ -3,20 +3,11 @@ package ramo.klevis.ml.kmeans;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.ml.clustering.KMeans;
-import org.apache.spark.ml.clustering.KMeansModel;
-import org.apache.spark.ml.linalg.DenseVector;
-import org.apache.spark.ml.linalg.Vector;
-import org.apache.spark.ml.linalg.VectorUDT;
-import org.apache.spark.ml.linalg.Vectors;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.expressions.GenericRow;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.mllib.clustering.KMeans;
+import org.apache.spark.mllib.clustering.KMeansModel;
+import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.mllib.linalg.Vectors;
+
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -27,6 +18,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -38,11 +30,6 @@ public class Run {
     public static void main(String[] args) throws IOException {
 
         JavaSparkContext sparkContext = createSparkContext();
-        SparkSession spark = SparkSession
-                .builder()
-                .master("local[*]")
-                .appName("Java Spark SQL basic example")
-                .getOrCreate();
 
 
         JFrame jFrame = new JFrame();
@@ -95,40 +82,31 @@ public class Run {
 
         JButton transform = new JButton("Transform");
         transform.addActionListener(actionListener -> {
+            long startBegin = System.currentTimeMillis();
             int colorToReduce = jslider.getValue();
             KMeans kMeans = new KMeans();
             kMeans.setSeed(1).setK(colorToReduce);
-            java.util.List<Row> collect = Arrays.stream(imageRGB).map(e -> {
+            List<Vector> collect = Arrays.stream(imageRGB).map(e -> {
                         DoubleStream doubleStream = Arrays.stream(e).mapToDouble(i -> i);
                         double[] doubles = doubleStream.toArray();
                         Vector dense = Vectors.dense(doubles);
-                        return RowFactory.create(dense);
+                        return dense;
                     }
 
             ).collect(Collectors.toList());
-            JavaRDD<Row> parallelize = sparkContext.parallelize(collect);
-            StructField[] fields = {new StructField("features", new VectorUDT(), false, Metadata.empty())};
-            StructType schema = new StructType(fields);
-            Dataset<Row> dataFrame = spark.createDataFrame(parallelize, schema);
-            KMeansModel fit = kMeans.fit(dataFrame);
-            Vector[] vectors = fit.clusterCenters();
-//            parallelize.map(e -> {
-//                Vector rowVector = (Vector) e.apply(0);
-//                int predict = fit.predict(rowVector);
-//                Integer[] transformedRow = new Integer[3];
-//                transformedRow[0] = (int) vectors[predict].apply(0);
-//                transformedRow[1] = (int) vectors[predict].apply(1);
-//                transformedRow[2] = (int) vectors[predict].apply(2);
-//                return transformedRow;
-//            }).collect();
+
+            JavaRDD<Vector> parallelize = sparkContext.parallelize(collect);
+            KMeansModel fit = kMeans.run(parallelize.rdd());
+            Vector[] clusters = fit.clusterCenters();
+            long start = System.currentTimeMillis();
             int[][] transformedImage = new int[imageRGB.length][3];
             int index = 0;
             for (int[] ints : imageRGB) {
                 double[] doubles = Arrays.stream(ints).mapToDouble(e -> e).toArray();
-                int predict = fit.predict(new DenseVector(doubles));
-                transformedImage[index][0] = (int) vectors[predict].apply(0);
-                transformedImage[index][1] = (int) vectors[predict].apply(1);
-                transformedImage[index][2] = (int) vectors[predict].apply(2);
+                int predict = fit.predict(Vectors.dense(doubles));
+                transformedImage[index][0] = (int) clusters[predict].apply(0);
+                transformedImage[index][1] = (int) clusters[predict].apply(1);
+                transformedImage[index][2] = (int) clusters[predict].apply(2);
                 index++;
             }
             try {
@@ -136,6 +114,8 @@ public class Run {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            System.out.println((System.currentTimeMillis()) - start);
+            System.out.println((System.currentTimeMillis()) - startBegin);
         });
         addTransformButton(mainPanel, transform);
 
