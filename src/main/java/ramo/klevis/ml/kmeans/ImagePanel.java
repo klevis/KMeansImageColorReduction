@@ -14,8 +14,8 @@ import javax.swing.JPanel;
 
 public class ImagePanel extends JPanel {
 
-    public static final int DEFAULT_WIDTH = 300;
-    public static final int DEFAULT_HEIGHT = 300;
+    public static final int DEFAULT_WIDTH = 400;
+    public static final int DEFAULT_HEIGHT = 400;
     private Image img;
 
 
@@ -33,7 +33,12 @@ public class ImagePanel extends JPanel {
     }
 
     public ImagePanel() throws IOException {
-        BufferedImage originalImage = ImageIO.read(Paths.get("placeholder.gif").toFile());
+        String first = "placeholder.gif";
+        setImage(first);
+    }
+
+    public void setImage(String first) throws IOException {
+        BufferedImage originalImage = ImageIO.read(Paths.get(first).toFile());
         Image scaledInstance = originalImage.getScaledInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
         setImg(scaledInstance);
     }
