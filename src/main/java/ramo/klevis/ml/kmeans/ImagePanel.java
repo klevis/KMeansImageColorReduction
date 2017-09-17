@@ -5,8 +5,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStream;
 
 
 public class ImagePanel extends JPanel {
@@ -14,7 +13,7 @@ public class ImagePanel extends JPanel {
     public static final int DEFAULT_WIDTH = 400;
     public static final int DEFAULT_HEIGHT = 400;
     private Image img;
-    private Path path;
+    private BufferedImage originalImage;
 
 
     public void setImg(Image img) {
@@ -31,22 +30,21 @@ public class ImagePanel extends JPanel {
     }
 
     public ImagePanel(boolean source) throws IOException {
-        String first;
+        String showDefaultImage;
         if (!source) {
-            first = "placeholder.gif";
+            showDefaultImage = "/placeholder.gif";
         } else {
-            first = "autumn-forest.jpg";
+            showDefaultImage = "/autumn-forest.jpg";
         }
-        setImage(first);
+        setImage(getClass().getResourceAsStream(showDefaultImage));
     }
 
-    public Path getPath() {
-        return path;
+    public BufferedImage getBufferedImage() {
+        return originalImage;
     }
 
-    public void setImage(String first) throws IOException {
-        path = Paths.get(first);
-        BufferedImage originalImage = ImageIO.read(path.toFile());
+    public void setImage(InputStream imageStream) throws IOException {
+        originalImage = ImageIO.read(imageStream);
         Image scaledInstance = originalImage.getScaledInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
         setImg(scaledInstance);
     }

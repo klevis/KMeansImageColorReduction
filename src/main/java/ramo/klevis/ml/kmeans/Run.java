@@ -16,9 +16,12 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,10 +35,9 @@ public class Run {
     private static JLabel sizeLabelTransformedImage = new JLabel();
     private static ImagePanel sourceImagePanel;
     private static JFrame jFrame;
+    private static JavaSparkContext javaSparkContext;
 
-    public static void main(String[] args) throws IOException {
-
-        final JavaSparkContext sparkContext = createSparkContext();
+    public static void main(String[] args) throws IOException, URISyntaxException {
 
 
         jFrame = new JFrame();
@@ -86,10 +88,12 @@ public class Run {
 
             Runnable runnable = () -> {
                 try {
+                    final JavaSparkContext sparkContext = getSparkContext();
                     transformAction(sparkContext, jslider, transformedImagedPanel);
-                    jProgressBar.setVisible(false);
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    jProgressBar.setVisible(false);
                 }
             };
             Thread thread = new Thread(runnable);
@@ -99,7 +103,7 @@ public class Run {
         });
         addTransformButton(mainPanel, transform);
 
-        jFrame.add(mainPanel,BorderLayout.CENTER);
+        jFrame.add(mainPanel, BorderLayout.CENTER);
         jFrame.setVisible(true);
 
 
@@ -113,7 +117,7 @@ public class Run {
 
 
             try {
-                Image scaledInstance = prepareSourceImage(chooser.getSelectedFile());
+                Image scaledInstance = prepareSourceImage(new FileInputStream(chooser.getSelectedFile()), chooser.getSelectedFile().length());
                 sourceImagePanel.setImg(scaledInstance);
                 mainPanel.updateUI();
             } catch (IOException e1) {
@@ -124,7 +128,8 @@ public class Run {
 
     private static void transformAction(JavaSparkContext sparkContext, JSlider jslider, ImagePanel transformedImagedPanel) throws IOException {
         if (imageRGB == null) {
-            prepareSourceImage(sourceImagePanel.getPath().toFile());
+            //default image was transformed
+            prepareSourceImage(sourceImagePanel.getBufferedImage(), 2501632);
         }
 
         long startBegin = System.currentTimeMillis();
@@ -161,10 +166,16 @@ public class Run {
         System.out.println((System.currentTimeMillis()) - startBegin);
     }
 
-    public static Image prepareSourceImage(File selectedFile) throws IOException {
+    public static Image prepareSourceImage(InputStream selectedFile, long fileSize) throws IOException {
         originalImage = ImageIO.read(selectedFile);
+        Image scaledInstance = prepareSourceImage(originalImage, fileSize);
+        return scaledInstance;
+    }
+
+    private static Image prepareSourceImage(BufferedImage bufferedImage, long fileSize) {
+        originalImage = bufferedImage;
         Image scaledInstance = originalImage.getScaledInstance(ImagePanel.DEFAULT_WIDTH, ImagePanel.DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
-        sizeLabelOriginalImage.setText("File Size Before Color Reduction : " + BigDecimal.valueOf(selectedFile.length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
+        sizeLabelOriginalImage.setText("File Size Before Color Reduction : " + BigDecimal.valueOf(fileSize / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
         sizeLabelOriginalImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         sizeLabelOriginalImage.setForeground(Color.RED);
         imageRGB = transformImageToTwoDimensionalMatrix(originalImage);
@@ -172,9 +183,12 @@ public class Run {
     }
 
 
-    private static JavaSparkContext createSparkContext() {
-        SparkConf conf = new SparkConf().setAppName("Finance Fraud Detection").setMaster("local[*]");
-        return new JavaSparkContext(conf);
+    private static JavaSparkContext getSparkContext() {
+        if (javaSparkContext == null) {
+            SparkConf conf = new SparkConf().setAppName("Finance Fraud Detection").setMaster("local[*]");
+            javaSparkContext = new JavaSparkContext(conf);
+        }
+        return javaSparkContext;
     }
 
     private static void addSizeLabel(JPanel mainPanel, JLabel sizeLabel, int pos) {
@@ -256,7 +270,7 @@ public class Run {
         }
         File outputfile = new File("writeBack.png");
         ImageIO.write(writeBackImage, "png", outputfile);
-        transformedImagedPanel.setImage("writeBack.png");
+        transformedImagedPanel.setImage(new FileInputStream("writeBack.png"));
         sizeLabelTransformedImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         sizeLabelTransformedImage.setText("File Size After Color Reduction : " + BigDecimal.valueOf(outputfile.length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
         sizeLabelTransformedImage.setForeground(Color.RED);
