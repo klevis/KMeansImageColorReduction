@@ -30,13 +30,15 @@ public class Run {
     private static BufferedImage originalImage;
     private static JLabel sizeLabelOriginalImage = new JLabel();
     private static JLabel sizeLabelTransformedImage = new JLabel();
+    private static ImagePanel sourceImagePanel;
+    private static JFrame jFrame;
 
     public static void main(String[] args) throws IOException {
 
-        JavaSparkContext sparkContext = createSparkContext();
+        final JavaSparkContext sparkContext = createSparkContext();
 
 
-        JFrame jFrame = new JFrame();
+        jFrame = new JFrame();
         jFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         jFrame.setSize(1000, 600);
         jFrame.setLocationRelativeTo(null);
@@ -45,14 +47,14 @@ public class Run {
 
         addSizeLabel(mainPanel, sizeLabelOriginalImage, 0);
         addSizeLabel(mainPanel, sizeLabelTransformedImage, 2);
-        ImagePanel sourceImagePanel = new ImagePanel();
+        sourceImagePanel = new ImagePanel(true);
         addSourceImagePanel(mainPanel, sourceImagePanel);
 
         JButton jButton = new JButton("Choose File");
         addChooseButton(mainPanel, jButton);
 
 
-        JSlider jslider = new JSlider(SwingConstants.VERTICAL, 4, 32, 8);
+        final JSlider jslider = new JSlider(SwingConstants.VERTICAL, 4, 32, 8);
         jslider.setMajorTickSpacing(4);
         jslider.setMinorTickSpacing(1);
         jslider.setPaintTicks(true);
@@ -60,75 +62,113 @@ public class Run {
         jslider.setToolTipText("Reduce Number of Colors");
         addSlider(mainPanel, jslider);
 
-        ImagePanel transformedImagedPanel = new ImagePanel();
+        final ImagePanel transformedImagedPanel = new ImagePanel(false);
         addTransformedImagePanel(mainPanel, transformedImagedPanel);
 
         jButton.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                JFileChooser chooser = new JFileChooser();
-                chooser.setCurrentDirectory(new File("target"));
-                int i = chooser.showOpenDialog(null);
-                if (i == JFileChooser.APPROVE_OPTION) {
-
-
-                    try {
-                        originalImage = ImageIO.read(chooser.getSelectedFile());
-                        Image scaledInstance = originalImage.getScaledInstance(ImagePanel.DEFAULT_WIDTH, ImagePanel.DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
-                        sizeLabelOriginalImage.setText("File Size Before Color Reduction : " + BigDecimal.valueOf(chooser.getSelectedFile().length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
-                        sizeLabelOriginalImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-                        sizeLabelOriginalImage.setForeground(Color.RED);
-                        imageRGB = transformImageToTwoDimensionalMatrix(originalImage);
-                        sourceImagePanel.setImg(scaledInstance);
-                        mainPanel.updateUI();
-                    } catch (IOException e1) {
-                        throw new RuntimeException(e1);
-                    }
-                }
+                chooseSourceImageAction(sourceImagePanel, mainPanel);
             }
         });
 
         JButton transform = new JButton("Transform");
         transform.addActionListener(actionListener -> {
-            long startBegin = System.currentTimeMillis();
-            int colorToReduce = jslider.getValue();
-            KMeans kMeans = new KMeans();
-            kMeans.setSeed(1).setK(colorToReduce);
-            List<Vector> collect = Arrays.stream(imageRGB).map(e -> {
-                        DoubleStream doubleStream = Arrays.stream(e).mapToDouble(i -> i);
-                        double[] doubles = doubleStream.toArray();
-                        Vector dense = Vectors.dense(doubles);
-                        return dense;
-                    }
+            JProgressBar jProgressBar = new JProgressBar(JProgressBar.HORIZONTAL);
+            jFrame.add(jProgressBar, BorderLayout.NORTH);
+            SwingUtilities.invokeLater(() -> {
+                jProgressBar.setString("Please wait it may take one or two minutes");
+                jProgressBar.setStringPainted(true);
+                jProgressBar.setIndeterminate(true);
+                jProgressBar.setVisible(true);
+                jFrame.repaint();
+            });
 
-            ).collect(Collectors.toList());
+            Runnable runnable = () -> {
+                try {
+                    transformAction(sparkContext, jslider, transformedImagedPanel);
+                    jProgressBar.setVisible(false);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            };
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            thread.start();
 
-            JavaRDD<Vector> parallelize = sparkContext.parallelize(collect);
-            KMeansModel fit = kMeans.run(parallelize.rdd());
-            Vector[] clusters = fit.clusterCenters();
-            int[][] transformedImage = new int[imageRGB.length][3];
-            int index = 0;
-            for (int[] ints : imageRGB) {
-                double[] doubles = Arrays.stream(ints).mapToDouble(e -> e).toArray();
-                int predict = fit.predict(Vectors.dense(doubles));
-                transformedImage[index][0] = (int) clusters[predict].apply(0);
-                transformedImage[index][1] = (int) clusters[predict].apply(1);
-                transformedImage[index][2] = (int) clusters[predict].apply(2);
-                index++;
-            }
-            try {
-                reCreateOriginalImageFromMatrix(originalImage, transformedImage, transformedImagedPanel);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            System.out.println((System.currentTimeMillis()) - startBegin);
         });
         addTransformButton(mainPanel, transform);
 
-        jFrame.add(mainPanel);
+        jFrame.add(mainPanel,BorderLayout.CENTER);
         jFrame.setVisible(true);
 
 
+    }
+
+    private static void chooseSourceImageAction(ImagePanel sourceImagePanel, JPanel mainPanel) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setCurrentDirectory(new File("target"));
+        int i = chooser.showOpenDialog(null);
+        if (i == JFileChooser.APPROVE_OPTION) {
+
+
+            try {
+                Image scaledInstance = prepareSourceImage(chooser.getSelectedFile());
+                sourceImagePanel.setImg(scaledInstance);
+                mainPanel.updateUI();
+            } catch (IOException e1) {
+                throw new RuntimeException(e1);
+            }
+        }
+    }
+
+    private static void transformAction(JavaSparkContext sparkContext, JSlider jslider, ImagePanel transformedImagedPanel) throws IOException {
+        if (imageRGB == null) {
+            prepareSourceImage(sourceImagePanel.getPath().toFile());
+        }
+
+        long startBegin = System.currentTimeMillis();
+        int colorToReduce = jslider.getValue();
+        KMeans kMeans = new KMeans();
+        kMeans.setSeed(1).setK(colorToReduce);
+        List<Vector> collect = Arrays.stream(imageRGB).map(e -> {
+                    DoubleStream doubleStream = Arrays.stream(e).mapToDouble(i -> i);
+                    double[] doubles = doubleStream.toArray();
+                    Vector dense = Vectors.dense(doubles);
+                    return dense;
+                }
+
+        ).collect(Collectors.toList());
+
+        JavaRDD<Vector> parallelize = sparkContext.parallelize(collect);
+        KMeansModel fit = kMeans.run(parallelize.rdd());
+        Vector[] clusters = fit.clusterCenters();
+        int[][] transformedImage = new int[imageRGB.length][3];
+        int index = 0;
+        for (int[] ints : imageRGB) {
+            double[] doubles = Arrays.stream(ints).mapToDouble(e -> e).toArray();
+            int predict = fit.predict(Vectors.dense(doubles));
+            transformedImage[index][0] = (int) clusters[predict].apply(0);
+            transformedImage[index][1] = (int) clusters[predict].apply(1);
+            transformedImage[index][2] = (int) clusters[predict].apply(2);
+            index++;
+        }
+        try {
+            reCreateOriginalImageFromMatrix(originalImage, transformedImage, transformedImagedPanel);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println((System.currentTimeMillis()) - startBegin);
+    }
+
+    public static Image prepareSourceImage(File selectedFile) throws IOException {
+        originalImage = ImageIO.read(selectedFile);
+        Image scaledInstance = originalImage.getScaledInstance(ImagePanel.DEFAULT_WIDTH, ImagePanel.DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
+        sizeLabelOriginalImage.setText("File Size Before Color Reduction : " + BigDecimal.valueOf(selectedFile.length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
+        sizeLabelOriginalImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        sizeLabelOriginalImage.setForeground(Color.RED);
+        imageRGB = transformImageToTwoDimensionalMatrix(originalImage);
+        return scaledInstance;
     }
 
 
@@ -218,7 +258,7 @@ public class Run {
         ImageIO.write(writeBackImage, "png", outputfile);
         transformedImagedPanel.setImage("writeBack.png");
         sizeLabelTransformedImage.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        sizeLabelTransformedImage.setText("File Size After Color Reduction : " + BigDecimal.valueOf(outputfile.length() / (1024d * 1024d)).setScale(2,RoundingMode.HALF_UP).doubleValue() + " MB ");
+        sizeLabelTransformedImage.setText("File Size After Color Reduction : " + BigDecimal.valueOf(outputfile.length() / (1024d * 1024d)).setScale(2, RoundingMode.HALF_UP).doubleValue() + " MB ");
         sizeLabelTransformedImage.setForeground(Color.RED);
     }
 

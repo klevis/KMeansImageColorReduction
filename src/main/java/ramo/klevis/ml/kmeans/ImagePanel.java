@@ -1,16 +1,12 @@
 package ramo.klevis.ml.kmeans;
 
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Image;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import javax.imageio.ImageIO;
-import javax.swing.JPanel;
 
 
 public class ImagePanel extends JPanel {
@@ -34,8 +30,13 @@ public class ImagePanel extends JPanel {
         updateUI();
     }
 
-    public ImagePanel() throws IOException {
-        String first = "placeholder.gif";
+    public ImagePanel(boolean source) throws IOException {
+        String first;
+        if (!source) {
+            first = "placeholder.gif";
+        } else {
+            first = "autumn-forest.jpg";
+        }
         setImage(first);
     }
 
