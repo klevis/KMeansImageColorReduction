@@ -47,15 +47,8 @@ public class KMeansUI {
 
         transformButton.addActionListener(e -> {
 
-            SwingUtilities.invokeLater(() -> {
-                progressBar = createProgressBar(mainFrame);
-                progressBar.setString("Please wait it may take one or two minutes");
-                progressBar.setStringPainted(true);
-                progressBar.setIndeterminate(true);
-                progressBar.setVisible(true);
-                mainFrame.repaint();
-            });
-            Runnable runnable = () -> {
+            showProgressBar();
+            Thread thread = new Thread(()-> {
                 try {
                     kMeansUIActions.transformAction(colorReductionSlider.getValue(),
                             transformedImageSizeLabel, sourceImagePanel.getCurrentBufferedImage(), transformedImagePanel);
@@ -64,12 +57,22 @@ public class KMeansUI {
                 } finally {
                     progressBar.setVisible(false);
                 }
-            };
-            Thread thread = new Thread(runnable);
+            });
             thread.setDaemon(true);
             thread.start();
 
 
+        });
+    }
+
+    private void showProgressBar() {
+        SwingUtilities.invokeLater(() -> {
+            progressBar = createProgressBar(mainFrame);
+            progressBar.setString("Please wait it may take one or two minutes");
+            progressBar.setStringPainted(true);
+            progressBar.setIndeterminate(true);
+            progressBar.setVisible(true);
+            mainFrame.repaint();
         });
     }
 
@@ -181,6 +184,7 @@ public class KMeansUI {
     private void addSignature(JFrame mainFrame) {
         JLabel signature = new JLabel("ramok.tech", JLabel.HORIZONTAL);
         signature.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 16));
+        signature.setForeground(Color.DARK_GRAY);
         mainFrame.add(signature, BorderLayout.SOUTH);
     }
 }
