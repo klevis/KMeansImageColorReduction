@@ -13,11 +13,30 @@ public class ImagePanel extends JPanel {
     public static final int DEFAULT_WIDTH = 400;
     public static final int DEFAULT_HEIGHT = 400;
     private Image img;
-    private BufferedImage originalImage;
+    private BufferedImage bufferedImage;
 
 
-    public void setImg(Image img) {
-        this.img = img;
+    public ImagePanel(boolean sourceImage) throws IOException {
+        String showDefaultImage = getDefaultImage(sourceImage);
+        setImage(getClass().getResourceAsStream(showDefaultImage));
+    }
+
+
+    public BufferedImage getCurrentBufferedImage() {
+        return bufferedImage;
+    }
+
+    public void setImage(InputStream imageStream) throws IOException {
+        bufferedImage = ImageIO.read(imageStream);
+        Image scaledInstance = bufferedImage.getScaledInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
+        setImage(scaledInstance);
+    }
+
+    public void paintComponent(Graphics g) {
+        g.drawImage(img, 0, 0, null);
+    }
+
+    public void setImage(Image img) {
         this.img = img;
         Dimension size = new Dimension(img.getWidth(null), img.getHeight(null));
         setPreferredSize(size);
@@ -29,28 +48,14 @@ public class ImagePanel extends JPanel {
         updateUI();
     }
 
-    public ImagePanel(boolean source) throws IOException {
+    private String getDefaultImage(boolean sourceImage) {
         String showDefaultImage;
-        if (!source) {
+        if (!sourceImage) {
             showDefaultImage = "/placeholder.gif";
         } else {
             showDefaultImage = "/autumn-forest.jpg";
         }
-        setImage(getClass().getResourceAsStream(showDefaultImage));
-    }
-
-    public BufferedImage getBufferedImage() {
-        return originalImage;
-    }
-
-    public void setImage(InputStream imageStream) throws IOException {
-        originalImage = ImageIO.read(imageStream);
-        Image scaledInstance = originalImage.getScaledInstance(DEFAULT_WIDTH, DEFAULT_HEIGHT, Image.SCALE_DEFAULT);
-        setImg(scaledInstance);
-    }
-
-    public void paintComponent(Graphics g) {
-        g.drawImage(img, 0, 0, null);
+        return showDefaultImage;
     }
 
 }

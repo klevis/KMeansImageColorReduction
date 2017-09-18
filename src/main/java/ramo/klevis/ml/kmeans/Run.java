@@ -118,7 +118,7 @@ public class Run {
 
             try {
                 Image scaledInstance = prepareSourceImage(new FileInputStream(chooser.getSelectedFile()), chooser.getSelectedFile().length());
-                sourceImagePanel.setImg(scaledInstance);
+                sourceImagePanel.setImage(scaledInstance);
                 mainPanel.updateUI();
             } catch (IOException e1) {
                 throw new RuntimeException(e1);
@@ -129,7 +129,7 @@ public class Run {
     private static void transformAction(JavaSparkContext sparkContext, JSlider jslider, ImagePanel transformedImagedPanel) throws IOException {
         if (imageRGB == null) {
             //default image was transformed
-            prepareSourceImage(sourceImagePanel.getBufferedImage(), 2501632);
+            prepareSourceImage(sourceImagePanel.getCurrentBufferedImage(), 2501632);
         }
 
         long startBegin = System.currentTimeMillis();
