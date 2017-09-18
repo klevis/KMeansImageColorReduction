@@ -14,9 +14,15 @@ public class ImagePanel extends JPanel {
     public static final int DEFAULT_HEIGHT = 400;
     private Image img;
     private BufferedImage bufferedImage;
+    private boolean sourceImage;
 
 
     public ImagePanel(boolean sourceImage) throws IOException {
+        this.sourceImage = sourceImage;
+        showDefault();
+    }
+
+    public void showDefault() throws IOException {
         String showDefaultImage = getDefaultImage(sourceImage);
         setImage(getClass().getResourceAsStream(showDefaultImage));
     }
@@ -24,6 +30,10 @@ public class ImagePanel extends JPanel {
 
     public BufferedImage getCurrentBufferedImage() {
         return bufferedImage;
+    }
+
+    public void setBufferedImage(BufferedImage bufferedImage) {
+        this.bufferedImage = bufferedImage;
     }
 
     public void setImage(InputStream imageStream) throws IOException {

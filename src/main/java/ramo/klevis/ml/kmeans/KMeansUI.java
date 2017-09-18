@@ -3,6 +3,8 @@ package ramo.klevis.ml.kmeans;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 
 /**
@@ -20,6 +22,10 @@ public class KMeansUI {
     private ImagePanel transformedImagePanel;
     private JButton transformButton;
     private JButton chooseButton;
+    private KMeansUIActions kMeansUIActions = new KMeansUIActions();
+    private JLabel sourceImageSizeLabel;
+    private JLabel transformedImageSizeLabel;
+    private JFrame mainFrame;
 
     public KMeansUI() throws IOException {
         initUI();
@@ -27,25 +33,59 @@ public class KMeansUI {
     }
 
     private void addListeners() {
+
+        kMeansUIActions.updateSizeLabel(sourceImageSizeLabel, 2501632, "File Size Before Color Reduction");
+        chooseButton.addActionListener(e -> {
+            try {
+                kMeansUIActions.chooseFileAction(sourceImagePanel, sourceImageSizeLabel);
+                transformedImageSizeLabel.setText("");
+                transformedImagePanel.showDefault();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        });
+
+        transformButton.addActionListener(e -> {
+
+            SwingUtilities.invokeLater(() -> {
+                progressBar = createProgressBar(mainFrame);
+                progressBar.setString("Please wait it may take one or two minutes");
+                progressBar.setStringPainted(true);
+                progressBar.setIndeterminate(true);
+                progressBar.setVisible(true);
+                mainFrame.repaint();
+            });
+            Runnable runnable = () -> {
+                try {
+                    kMeansUIActions.transformAction(colorReductionSlider.getValue(),
+                            transformedImageSizeLabel, sourceImagePanel.getCurrentBufferedImage(), transformedImagePanel);
+                } catch (IOException e1) {
+                    throw new RuntimeException(e1);
+                } finally {
+                    progressBar.setVisible(false);
+                }
+            };
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            thread.start();
+
+
+        });
     }
 
-    private void initUI() throws IOException {
-        JFrame mainFrame = createMainFrame();
 
-        addSignature(mainFrame);
+    private void initUI() throws IOException {
+        mainFrame = createMainFrame();
+
 
         addMainPanel(mainFrame);
-
-        progressBar = createProgressBar(mainFrame);
+        addSignature(mainFrame);
 
         mainFrame.setVisible(true);
     }
 
     private JProgressBar createProgressBar(JFrame mainFrame) {
         JProgressBar jProgressBar = new JProgressBar(JProgressBar.HORIZONTAL);
-        jProgressBar.setString("Please wait it may take one or two minutes");
-        jProgressBar.setStringPainted(true);
-        jProgressBar.setIndeterminate(true);
         mainFrame.add(jProgressBar, BorderLayout.NORTH);
         return jProgressBar;
     }
@@ -55,29 +95,43 @@ public class KMeansUI {
         mainFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         mainFrame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
         mainFrame.setLocationRelativeTo(null);
+        mainFrame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                System.exit(0);
+            }
+        });
         return mainFrame;
     }
 
     private void addMainPanel(JFrame mainFrame) throws IOException {
         mainPanel = new JPanel(new GridBagLayout());
 
-        addSourceImagePanel();
-
-        addTransformedImagePanel();
-
         addTransformedButton();
-
         addChooseFileButton();
 
+        addSourceImagePanel();
+        addTransformedImagePanel();
+
         addColorReductionSlider();
+
+        addImageSizeLabels();
 
         mainFrame.add(mainPanel, BorderLayout.CENTER);
 
     }
 
+    private void addImageSizeLabels() {
+        sourceImageSizeLabel = new JLabel();
+        addComponentToMainPanel(sourceImageSizeLabel, 0, 0, 0.1, 0.1);
+
+        transformedImageSizeLabel = new JLabel();
+        addComponentToMainPanel(transformedImageSizeLabel, 2, 0, 0.1, 0.1);
+    }
+
     private void addChooseFileButton() {
         chooseButton = new JButton("Choose File");
-        addComponentToMainPanel(chooseButton,1,2,0,0);
+        addComponentToMainPanel(chooseButton, 1, 2, 0, 0);
     }
 
     private void addColorReductionSlider() {
@@ -120,7 +174,8 @@ public class KMeansUI {
         c.weightx = wX;
         c.weighty = wY;
         mainPanel.add(jComponent, c);
-        jComponent.setBorder(new LineBorder(Color.black));
+        if (jComponent instanceof JPanel)
+            jComponent.setBorder(new LineBorder(Color.black));
     }
 
     private void addSignature(JFrame mainFrame) {
