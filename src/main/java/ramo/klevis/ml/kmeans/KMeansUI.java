@@ -12,15 +12,21 @@ public class KMeansUI {
 
     private static final int FRAME_WIDTH = 1000;
     private static final int FRAME_HEIGHT = 600;
-    private JProgressBar progressBar;
+
     private JPanel mainPanel;
+    private JProgressBar progressBar;
     private JSlider colorReductionSlider;
     private ImagePanel sourceImagePanel;
     private ImagePanel transformedImagePanel;
     private JButton transformButton;
+    private JButton chooseButton;
 
     public KMeansUI() throws IOException {
         initUI();
+        addListeners();
+    }
+
+    private void addListeners() {
     }
 
     private void initUI() throws IOException {
@@ -53,22 +59,45 @@ public class KMeansUI {
     }
 
     private void addMainPanel(JFrame mainFrame) throws IOException {
-        JPanel mainPanel = new JPanel(new GridBagLayout());
+        mainPanel = new JPanel(new GridBagLayout());
 
-        sourceImagePanel = new ImagePanel(true);
-        addComponentToMainPanel(sourceImagePanel, 0, 1, 1, 1);
+        addSourceImagePanel();
 
-        transformedImagePanel = new ImagePanel(false);
-        addComponentToMainPanel(transformedImagePanel, 2, 1, 1, 1);
+        addTransformedImagePanel();
 
-        transformButton = new JButton("Transform");
-        addComponentToMainPanel(transformButton, 1, 0, 0, 0);
+        addTransformedButton();
 
-        colorReductionSlider = createColorReductionSlider();
-        addComponentToMainPanel(colorReductionSlider, 1, 1, 0, 0);
+        addChooseFileButton();
+
+        addColorReductionSlider();
 
         mainFrame.add(mainPanel, BorderLayout.CENTER);
 
+    }
+
+    private void addChooseFileButton() {
+        chooseButton = new JButton("Choose File");
+        addComponentToMainPanel(chooseButton,1,2,0,0);
+    }
+
+    private void addColorReductionSlider() {
+        colorReductionSlider = createColorReductionSlider();
+        addComponentToMainPanel(colorReductionSlider, 1, 1, 0, 0);
+    }
+
+    private void addTransformedButton() {
+        transformButton = new JButton("Transform");
+        addComponentToMainPanel(transformButton, 1, 0, 0, 0);
+    }
+
+    private void addTransformedImagePanel() throws IOException {
+        transformedImagePanel = new ImagePanel(false);
+        addComponentToMainPanel(transformedImagePanel, 2, 1, 1, 1);
+    }
+
+    private void addSourceImagePanel() throws IOException {
+        sourceImagePanel = new ImagePanel(true);
+        addComponentToMainPanel(sourceImagePanel, 0, 1, 1, 1);
     }
 
     private JSlider createColorReductionSlider() {
