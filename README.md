@@ -4,3 +4,5 @@ Java Machine Learning Application for reducing images colors
 KMeans implementation from Spark MLib was used for grouping similar colors
 together and instead of representing thousands of colors the image is 
 transformed to represent only few colors(16,32,54)
+
+License to EPL https://www.eclipse.org/legal/epl-v10.html
